@@ -3,15 +3,31 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// Generate timestamp-based version code (YYMMDDHHMM format) using UTC
+// YY = years since 2025 (2025=00, 2026=01, etc.)
+// This ensures version codes are always increasing
+def now = new Date()
+def utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+utcCal.setTime(now)
+
+def yearOffset = utcCal.get(Calendar.YEAR) - 2025
+def month = String.format("%02d", utcCal.get(Calendar.MONTH) + 1)
+def day = String.format("%02d", utcCal.get(Calendar.DAY_OF_MONTH))
+def hour = String.format("%02d", utcCal.get(Calendar.HOUR_OF_DAY))
+def minute = String.format("%02d", utcCal.get(Calendar.MINUTE))
+
+def generatedVersionCode = Integer.parseInt(String.format("%02d%s%s%s%s", yearOffset, month, day, hour, minute))
+println "📦 Generated version code: ${generatedVersionCode} (UTC: ${utcCal.getTime()})"
+
 android {
     namespace 'commercial_and_residential_evil.whirled_peas'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "commercial_and_residential_evil.whirled_peas"
         minSdk 24
-        targetSdk 34
-        versionCode 1
+        targetSdk 35
+        versionCode generatedVersionCode
         versionName "0.1.0"
 
         ndk {

@@ -28,7 +28,9 @@ Thumbs.db
 *firebase*.json
 *.keystore
 *.jks
+*.p12
 google-services.json
+android/key.properties
 
 # Run outputs
 /.runs/

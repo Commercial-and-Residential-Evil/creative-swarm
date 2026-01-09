@@ -101,32 +101,36 @@ cp "$NDK_SYSROOT/arm-linux-androideabi/libc++_shared.so" \
 cp "$NDK_SYSROOT/x86_64-linux-android/libc++_shared.so" \
    android/app/src/main/jniLibs/x86_64/
 
-# Build APK with Gradle
-echo -e "${YELLOW}Building APK with Gradle...${NC}"
+# Build APK and AAB with Gradle
+echo -e "${YELLOW}Building APK and AAB with Gradle...${NC}"
 cd android
 
 if [ -f "./gradlew" ]; then
-    ./gradlew assembleRelease
+    ./gradlew assembleRelease bundleRelease
 else
     echo -e "${YELLOW}Gradle wrapper not found, creating...${NC}"
     gradle wrapper
-    ./gradlew assembleRelease
+    ./gradlew assembleRelease bundleRelease
 fi
 
 cd ..
 
 # Report success
 APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
+
+echo -e "${GREEN}=== Build Successful! ===${NC}"
+
 if [ -f "$APK_PATH" ]; then
-    echo -e "${GREEN}=== Build Successful! ===${NC}"
     echo -e "APK location: ${YELLOW}$APK_PATH${NC}"
-    echo ""
-    echo "To sign the APK for release, run:"
-    echo "  apksigner sign --ks your-keystore.jks $APK_PATH"
-    echo ""
-    echo "To install on a connected device:"
-    echo "  adb install $APK_PATH"
-else
-    echo -e "${RED}Build may have failed - APK not found at expected location${NC}"
-    exit 1
+    echo "  (For testing: adb install $APK_PATH)"
 fi
+
+if [ -f "$AAB_PATH" ]; then
+    echo -e "AAB location: ${YELLOW}$AAB_PATH${NC}"
+    echo "  (For Google Play Store upload)"
+fi
+
+echo ""
+echo "To sign for Play Store, run:"
+echo "  ./sign-apk.sh"
