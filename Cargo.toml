@@ -1,0 +1,77 @@
+[package]
+name = "whirled_peas"
+version = "0.1.0"
+edition = "2021"
+description = "Whirled Peas Visualiser - A wordless poem in light and sound"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "whirled_peas"
+path = "src/lib.rs"
+
+[[bin]]
+name = "whirled_peas"
+path = "src/main.rs"
+
+[dependencies]
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_asset",
+    "bevy_audio",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_winit",
+    "multi_threaded",
+    "png",
+    "wav",
+    "webgl2",
+    "x11",
+] }
+rand = "0.8"
+fastrand = "2.0"
+
+# Android-specific dependencies
+[target.'cfg(target_os = "android")'.dependencies]
+bevy = { version = "0.15", default-features = false, features = [
+    "android_shared_stdcxx",
+    "android-game-activity",
+    "bevy_asset",
+    "bevy_audio",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_winit",
+    "multi_threaded",
+    "png",
+    "wav",
+] }
+
+# Desktop-specific features for faster iteration
+[target.'cfg(not(target_os = "android"))'.dependencies]
+bevy = { version = "0.15", features = ["dynamic_linking"] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+# Android release profile - more aggressive optimization
+[profile.release-android]
+inherits = "release"
+lto = "fat"
+opt-level = "z"
+strip = true

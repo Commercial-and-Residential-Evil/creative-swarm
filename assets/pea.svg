@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Single green pea">
+  <!-- Transparent background by default -->
+  <defs>
+    <radialGradient id="peaFill" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#b7f36a"/>
+      <stop offset="45%" stop-color="#58c93a"/>
+      <stop offset="100%" stop-color="#1f7a2a"/>
+    </radialGradient>
+
+    <radialGradient id="peaShade" cx="60%" cy="65%" r="60%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.0"/>
+      <stop offset="65%" stop-color="#000000" stop-opacity="0.0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.22"/>
+    </radialGradient>
+
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
+      <feOffset dx="0" dy="10" result="off"/>
+      <feColorMatrix in="off" type="matrix"
+        values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.25 0" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Subtle ground shadow (still on transparent background) -->
+  <ellipse cx="270" cy="360" rx="150" ry="60" fill="#000000" opacity="0.12"/>
+
+  <!-- Pea -->
+  <g filter="url(#softShadow)">
+    <circle cx="240" cy="260" r="150" fill="url(#peaFill)"/>
+    <circle cx="240" cy="260" r="150" fill="url(#peaShade)"/>
+
+    <!-- Highlight -->
+    <path d="M170 165
+             C135 205, 140 265, 190 300
+             C210 315, 235 300, 230 275
+             C220 225, 205 195, 170 165 Z"
+          fill="#ffffff" opacity="0.22"/>
+
+    <!-- Tiny specular dot -->
+    <circle cx="190" cy="205" r="14" fill="#ffffff" opacity="0.35"/>
+  </g>
+</svg>

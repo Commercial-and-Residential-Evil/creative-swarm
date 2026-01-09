@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme for the app -->
+    <style name="Theme.WhirledPeas" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+    <!-- Fullscreen immersive theme for the game activity -->
+    <style name="Theme.WhirledPeas.Fullscreen" parent="Theme.WhirledPeas">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <!-- Hide navigation and status bars for true fullscreen -->
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+        <!-- Keep screen on while app is running -->
+        <item name="android:keepScreenOn">true</item>
+    </style>
+</resources>
