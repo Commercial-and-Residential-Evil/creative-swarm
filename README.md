@@ -13,6 +13,18 @@ Rust Art Swarm is a creative coding framework that combines:
 
 The system transforms creative prompts into fully-realized interactive audiovisual experiences through a structured pipeline of specialized AI agents.
 
+## Demo of Agentic Art Swarm: Whirled Peas Visualiser
+
+[Whirled Peas Visualiser](WHIRLED_PEAS.md) is the first creative work produced by the Rust Art Swarm system. It demonstrates the full pipeline from creative vision to deployed Android application.
+
+Whirled Peas is a meditative fidget app featuring:
+- Touch-responsive particle system with 15,000 pooled entities
+- Five-act narrative structure with evolving visuals
+- Engagement-adaptive ambient audio that respects device audio focus
+- Crisp pixel art rendering with organic particle motion
+
+See [WHIRLED_PEAS.md](WHIRLED_PEAS.md) for full documentation.
+
 ## Project Structure
 
     rust-art-swarm/
