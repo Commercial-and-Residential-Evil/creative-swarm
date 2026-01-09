@@ -10,12 +10,12 @@ Whirled Peas Visualiser is a meditative fidget app where users create and intera
 
 The Whirled Peas Visualiser originally came into being as a collaboration including David Mason and Brian Hall back in 1999. The original code was a Java applet, but after years of neglect, the source code was lost, leaving reverse engineering as our only option to continue the project.
 
-Some problems arose during reverse engineering because the original game class depended on a proprietary template class included in the MetroLinx Java IDE. The decision in 2025 was made to refactor out this ancient dependency and reprogram the entire app in Rust using Bevy for graphics instead of anything related to the older game architecture.
+Some problems arose during reverse engineering because the original game class depended on a proprietary template class included in the CodeWarrior for Java IDE. The decision in 2025 was made to refactor out this ancient dependency and reprogram the entire app in Rust using Bevy for graphics instead of anything related to the older game architecture.
 
 ### Reverse Engineering and Forward Engineering Pipeline
 
 1. Decompiled Java Applet
-2. Conversion to Rust with Bevy taking over the weight of the proprietary MetroLinx game classes
+2. Conversion to Rust with Bevy taking over the weight of the proprietary CodeWarrior game classes
 3. Output to WebAssembly
 4. Wrap the WebAssembly as an Android APK, adding all standard Google APIs and niceties for the Android runtime environment
 5. Bob's your uncle!
