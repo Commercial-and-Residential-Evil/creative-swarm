@@ -25,13 +25,24 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}=== Whirled Peas Visualiser Android Build ===${NC}"
 
-# Check for required environment
+# Check for required environment - prefer NDK 28+ for 16KB page size support
 if [ -z "$ANDROID_NDK_HOME" ]; then
-    echo -e "${RED}Error: ANDROID_NDK_HOME not set${NC}"
-    echo "Please set ANDROID_NDK_HOME to your NDK installation path"
-    echo "Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/25.2.9519653"
-    exit 1
+    # Try to find NDK 28+ automatically
+    if [ -d "$HOME/Android/Sdk/ndk/28.1.13356709" ]; then
+        export ANDROID_NDK_HOME="$HOME/Android/Sdk/ndk/28.1.13356709"
+        echo -e "${YELLOW}Using NDK 28.1 for 16KB page size support${NC}"
+    elif [ -d "$HOME/Android/Sdk/ndk/28.0.12433566" ]; then
+        export ANDROID_NDK_HOME="$HOME/Android/Sdk/ndk/28.0.12433566"
+        echo -e "${YELLOW}Using NDK 28.0 for 16KB page size support${NC}"
+    else
+        echo -e "${RED}Error: ANDROID_NDK_HOME not set${NC}"
+        echo "Please set ANDROID_NDK_HOME to your NDK installation path (NDK 28+ recommended)"
+        echo "Example: export ANDROID_NDK_HOME=~/Android/Sdk/ndk/28.1.13356709"
+        exit 1
+    fi
 fi
+
+echo -e "${YELLOW}Using NDK: $ANDROID_NDK_HOME${NC}"
 
 # Add NDK toolchain to PATH
 export PATH="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
@@ -53,11 +64,15 @@ TOOLCHAIN_DIR="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
 # Build for each Android architecture
 echo -e "${YELLOW}Building native libraries (API level $API_LEVEL)...${NC}"
 
+# Linker flags for 16KB page size support (required for Android 15+/API 35+)
+PAGE_SIZE_FLAGS="-Wl,-z,max-page-size=16384"
+
 echo "Building for ARM64 (aarch64)..."
 export CC_aarch64_linux_android="$TOOLCHAIN_DIR/aarch64-linux-android${API_LEVEL}-clang"
 export CXX_aarch64_linux_android="$TOOLCHAIN_DIR/aarch64-linux-android${API_LEVEL}-clang++"
 export AR_aarch64_linux_android="$TOOLCHAIN_DIR/llvm-ar"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN_DIR/aarch64-linux-android${API_LEVEL}-clang"
+export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
 cargo build --target aarch64-linux-android --release
 
 echo "Building for ARM32 (armv7)..."
@@ -65,6 +80,7 @@ export CC_armv7_linux_androideabi="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_
 export CXX_armv7_linux_androideabi="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang++"
 export AR_armv7_linux_androideabi="$TOOLCHAIN_DIR/llvm-ar"
 export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang"
+export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
 cargo build --target armv7-linux-androideabi --release
 
 echo "Building for x86_64..."
@@ -72,6 +88,7 @@ export CC_x86_64_linux_android="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-
 export CXX_x86_64_linux_android="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang++"
 export AR_x86_64_linux_android="$TOOLCHAIN_DIR/llvm-ar"
 export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang"
+export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
 cargo build --target x86_64-linux-android --release
 
 # Create jniLibs directory structure
@@ -100,6 +117,20 @@ cp "$NDK_SYSROOT/arm-linux-androideabi/libc++_shared.so" \
 
 cp "$NDK_SYSROOT/x86_64-linux-android/libc++_shared.so" \
    android/app/src/main/jniLibs/x86_64/
+
+# Verify 16KB page size alignment
+echo -e "${YELLOW}Verifying 16KB page size alignment...${NC}"
+READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+for so in android/app/src/main/jniLibs/*/libwhirled_peas.so; do
+    ALIGNMENT=$("$READELF" -l "$so" 2>/dev/null | grep -E "LOAD.*0x4000" | head -1)
+    if [ -n "$ALIGNMENT" ]; then
+        echo -e "  ${GREEN}✓${NC} $(basename $(dirname $so))/libwhirled_peas.so - 16KB aligned"
+    else
+        # Check actual alignment value
+        MAX_ALIGN=$("$READELF" -l "$so" 2>/dev/null | grep "LOAD" | awk '{print $NF}' | sort -n | tail -1)
+        echo -e "  ${YELLOW}?${NC} $(basename $(dirname $so))/libwhirled_peas.so - alignment: $MAX_ALIGN"
+    fi
+done
 
 # Build APK and AAB with Gradle
 echo -e "${YELLOW}Building APK and AAB with Gradle...${NC}"

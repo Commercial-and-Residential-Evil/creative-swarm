@@ -414,17 +414,43 @@ pub fn apply_background_pulse(
 #[derive(Resource)]
 pub struct AmbientAudioHandle(pub Handle<AudioSource>);
 
+/// Marker resource indicating audio should be disabled (file not found).
+#[derive(Resource, Default)]
+pub struct AudioDisabled;
+
 /// Pre-loads the ambient audio asset without starting playback.
 ///
 /// Audio playback is deferred until particles exceed the threshold,
 /// preventing the app from stealing audio focus on launch.
+///
+/// If the audio file (assets/audio/loop.wav) doesn't exist, audio is
+/// silently disabled - this allows disabling audio by simply removing the file.
 pub fn preload_ambient_audio(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
-    info!("Pre-loading ambient audio loop");
-    let audio_handle: Handle<AudioSource> = asset_server.load("audio/loop.wav");
-    commands.insert_resource(AmbientAudioHandle(audio_handle));
+    // On desktop, check if audio file exists before loading
+    // On Android, assets are embedded - we load and check validity later
+    #[cfg(not(target_os = "android"))]
+    {
+        let audio_path = std::path::Path::new("assets/audio/loop.wav");
+        if audio_path.exists() {
+            info!("Loading ambient audio loop");
+            let audio_handle: Handle<AudioSource> = asset_server.load("audio/loop.wav");
+            commands.insert_resource(AmbientAudioHandle(audio_handle));
+        } else {
+            info!("Audio file not found (assets/audio/loop.wav) - audio feature disabled");
+            commands.insert_resource(AudioDisabled);
+        }
+    }
+
+    // On Android, try to load - Bevy will handle missing assets gracefully
+    #[cfg(target_os = "android")]
+    {
+        info!("Loading ambient audio loop (Android)");
+        let audio_handle: Handle<AudioSource> = asset_server.load("audio/loop.wav");
+        commands.insert_resource(AmbientAudioHandle(audio_handle));
+    }
 }
 
 /// Manages ambient audio playback based on particle count.
@@ -439,7 +465,31 @@ pub fn update_ambient_audio(
     mut ambient_state: ResMut<AmbientAudioState>,
     audio_handle: Option<Res<AmbientAudioHandle>>,
     audio_sinks: Query<&AudioSink>,
+    audio_disabled: Option<Res<AudioDisabled>>,
+    asset_server: Res<AssetServer>,
 ) {
+    // Skip all audio processing if audio is disabled
+    if audio_disabled.is_some() {
+        return;
+    }
+
+    // On Android, check if the asset failed to load
+    if let Some(ref handle) = audio_handle {
+        use bevy::asset::LoadState;
+        match asset_server.get_load_state(&handle.0) {
+            Some(LoadState::Failed(_)) => {
+                // Asset failed to load - audio file missing from bundle
+                info!("Audio asset failed to load - disabling audio");
+                commands.insert_resource(AudioDisabled);
+                return;
+            }
+            Some(LoadState::Loading) => {
+                // Still loading, wait
+                return;
+            }
+            _ => {}
+        }
+    }
     let dt = time.delta_secs();
     let active = particle_pool.active_count;
 
