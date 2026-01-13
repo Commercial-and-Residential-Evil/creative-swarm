@@ -208,16 +208,17 @@ pub fn setup_intro_ui(mut commands: Commands, ui_font: Res<UiFont>) {
                 Name::new("TopBar"),
             ));
 
-            // Primary text (starts invisible for fade-in)
+            // Primary text (starts hidden to prevent flash before fade-in)
             parent.spawn((
                 Text::new(IntroStep::Title.primary_text()),
                 TextFont {
                     font: font.clone(),
-                    font_size: 64.0,
+                    font_size: IntroStep::Title.primary_font_size(),
                     ..default()
                 },
                 TextColor(Color::srgba(0.0, 1.0, 0.533, 0.0)), // Start transparent
                 TextLayout::new_with_justify(JustifyText::Center),
+                Visibility::Hidden, // Hidden until fade system makes it visible
                 IntroPrimaryText,
                 Name::new("PrimaryText"),
             ));
@@ -247,7 +248,10 @@ fn step_color(_step: IntroStep) -> Color {
 pub fn update_intro_sequence(
     time: Res<Time>,
     mut intro_state: ResMut<IntroState>,
-    mut primary_query: Query<(&mut Text, &mut TextFont, &mut TextColor), With<IntroPrimaryText>>,
+    mut primary_query: Query<
+        (&mut Text, &mut TextFont, &mut TextColor, &mut Visibility),
+        With<IntroPrimaryText>,
+    >,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     let dt = time.delta_secs();
@@ -261,7 +265,9 @@ pub fn update_intro_sequence(
             let t = (intro_state.phase_timer / FADE_DURATION).min(1.0);
             let alpha = ease_out(t); // ease-out makes fade-in more visible at start
 
-            if let Ok((_, _, mut color)) = primary_query.get_single_mut() {
+            if let Ok((_, _, mut color, mut visibility)) = primary_query.get_single_mut() {
+                // Make visible on first fade frame (after components are ready)
+                *visibility = Visibility::Visible;
                 let base = step_color(step).to_srgba();
                 *color = TextColor(Color::srgba(base.red, base.green, base.blue, alpha));
             }
@@ -281,7 +287,7 @@ pub fn update_intro_sequence(
             let t = (intro_state.phase_timer / FADE_DURATION).min(1.0);
             let alpha = 1.0 - ease_in(t); // ease-in makes fade-out more visible at end
 
-            if let Ok((_, _, mut color)) = primary_query.get_single_mut() {
+            if let Ok((_, _, mut color, _)) = primary_query.get_single_mut() {
                 let base = step_color(step).to_srgba();
                 *color = TextColor(Color::srgba(base.red, base.green, base.blue, alpha));
             }
@@ -294,10 +300,13 @@ pub fn update_intro_sequence(
                     intro_state.phase_timer = 0.0;
 
                     // Update text content, font size, and reset to transparent
-                    if let Ok((mut text, mut font, mut color)) = primary_query.get_single_mut() {
+                    if let Ok((mut text, mut font, mut color, mut visibility)) =
+                        primary_query.get_single_mut()
+                    {
                         **text = next_step.primary_text().to_string();
                         font.font_size = next_step.primary_font_size();
-                        // Start fully transparent for fade-in
+                        // Start hidden and transparent - FadingIn will make visible
+                        *visibility = Visibility::Hidden;
                         let base = step_color(next_step).to_srgba();
                         *color = TextColor(Color::srgba(base.red, base.green, base.blue, 0.0));
                     }

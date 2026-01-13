@@ -27,6 +27,10 @@ pub const INITIAL_CLEAR_COLOR: Color = Color::srgb(0.051, 0.051, 0.090);
 /// Background entity z-depth (far behind particles).
 const BACKGROUND_Z_DEPTH: f32 = -100.0;
 
+/// Marker for the intro-phase background (despawned when entering Fidget).
+#[derive(Component)]
+struct IntroBackground;
+
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
@@ -215,6 +219,32 @@ pub fn setup_camera(mut commands: Commands) {
     ));
 
     info!("Camera setup complete");
+}
+
+/// Spawns an immediate solid-color background for the intro phase.
+/// This prevents any flash of content before the UI renders.
+/// Despawned when transitioning to Fidget state.
+fn setup_intro_background(mut commands: Commands) {
+    commands.spawn((
+        Sprite {
+            color: INITIAL_CLEAR_COLOR,
+            custom_size: Some(Vec2::new(VIEWPORT_WIDTH * 2.0, VIEWPORT_HEIGHT * 2.0)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, BACKGROUND_Z_DEPTH),
+        IntroBackground,
+        Name::new("IntroBackground"),
+    ));
+}
+
+/// Removes the intro background when entering Fidget state.
+fn cleanup_intro_background(
+    mut commands: Commands,
+    query: Query<Entity, With<IntroBackground>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
 }
 
 /// Spawns the background entity with gradient visualization.
@@ -442,10 +472,13 @@ impl Plugin for VisualPlugin {
     fn build(&self, app: &mut App) {
         // Note: UiFont is loaded by ResourcesPlugin's load_ui_font system
         app
-            // Configure startup systems with ordering
-            .add_systems(Startup, setup_camera)
-            // Setup background when entering Fidget state (not during intro)
-            .add_systems(OnEnter(AppState::Fidget), setup_background)
+            // Configure startup systems with ordering - intro background prevents flash
+            .add_systems(Startup, (setup_camera, setup_intro_background).chain())
+            // Setup real background and cleanup intro background when entering Fidget
+            .add_systems(
+                OnEnter(AppState::Fidget),
+                (cleanup_intro_background, setup_background).chain(),
+            )
             // Configure update systems - only run during Fidget state
             .add_systems(
                 Update,
