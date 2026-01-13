@@ -23,7 +23,22 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Whirled Peas Visualiser Android Build ===${NC}"
+# Parse arguments
+DEV_MODE=false
+for arg in "$@"; do
+    case $arg in
+        --dev|--fast)
+            DEV_MODE=true
+            shift
+            ;;
+    esac
+done
+
+if [ "$DEV_MODE" = true ]; then
+    echo -e "${GREEN}=== Whirled Peas Android Build (DEV - ARM64 only) ===${NC}"
+else
+    echo -e "${GREEN}=== Whirled Peas Visualiser Android Build ===${NC}"
+fi
 
 # Check for required environment - prefer NDK 28+ for 16KB page size support
 if [ -z "$ANDROID_NDK_HOME" ]; then
@@ -49,7 +64,11 @@ export PATH="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
 
 # Check for required targets
 echo -e "${YELLOW}Checking Rust targets...${NC}"
-TARGETS="aarch64-linux-android armv7-linux-androideabi x86_64-linux-android"
+if [ "$DEV_MODE" = true ]; then
+    TARGETS="aarch64-linux-android"
+else
+    TARGETS="aarch64-linux-android armv7-linux-androideabi x86_64-linux-android"
+fi
 for target in $TARGETS; do
     if ! rustup target list --installed | grep -q "$target"; then
         echo -e "${YELLOW}Installing target: $target${NC}"
@@ -75,35 +94,43 @@ export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN_DIR/aarch64-linux-a
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
 cargo build --target aarch64-linux-android --release
 
-echo "Building for ARM32 (armv7)..."
-export CC_armv7_linux_androideabi="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang"
-export CXX_armv7_linux_androideabi="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang++"
-export AR_armv7_linux_androideabi="$TOOLCHAIN_DIR/llvm-ar"
-export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang"
-export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
-cargo build --target armv7-linux-androideabi --release
+if [ "$DEV_MODE" = false ]; then
+    echo "Building for ARM32 (armv7)..."
+    export CC_armv7_linux_androideabi="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang"
+    export CXX_armv7_linux_androideabi="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang++"
+    export AR_armv7_linux_androideabi="$TOOLCHAIN_DIR/llvm-ar"
+    export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="$TOOLCHAIN_DIR/armv7a-linux-androideabi${API_LEVEL}-clang"
+    export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
+    cargo build --target armv7-linux-androideabi --release
 
-echo "Building for x86_64..."
-export CC_x86_64_linux_android="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang"
-export CXX_x86_64_linux_android="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang++"
-export AR_x86_64_linux_android="$TOOLCHAIN_DIR/llvm-ar"
-export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang"
-export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
-cargo build --target x86_64-linux-android --release
+    echo "Building for x86_64..."
+    export CC_x86_64_linux_android="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang"
+    export CXX_x86_64_linux_android="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang++"
+    export AR_x86_64_linux_android="$TOOLCHAIN_DIR/llvm-ar"
+    export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="$TOOLCHAIN_DIR/x86_64-linux-android${API_LEVEL}-clang"
+    export CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=$PAGE_SIZE_FLAGS"
+    cargo build --target x86_64-linux-android --release
+fi
 
 # Create jniLibs directory structure
 echo -e "${YELLOW}Copying native libraries...${NC}"
-mkdir -p android/app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86_64}
+if [ "$DEV_MODE" = true ]; then
+    mkdir -p android/app/src/main/jniLibs/arm64-v8a
+else
+    mkdir -p android/app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86_64}
+fi
 
 # Copy our Rust libraries
 cp target/aarch64-linux-android/release/libwhirled_peas.so \
    android/app/src/main/jniLibs/arm64-v8a/
 
-cp target/armv7-linux-androideabi/release/libwhirled_peas.so \
-   android/app/src/main/jniLibs/armeabi-v7a/
+if [ "$DEV_MODE" = false ]; then
+    cp target/armv7-linux-androideabi/release/libwhirled_peas.so \
+       android/app/src/main/jniLibs/armeabi-v7a/
 
-cp target/x86_64-linux-android/release/libwhirled_peas.so \
-   android/app/src/main/jniLibs/x86_64/
+    cp target/x86_64-linux-android/release/libwhirled_peas.so \
+       android/app/src/main/jniLibs/x86_64/
+fi
 
 # Copy libc++_shared.so from NDK (required by oboe/C++ dependencies)
 echo -e "${YELLOW}Copying C++ shared library...${NC}"
@@ -112,11 +139,13 @@ NDK_SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr
 cp "$NDK_SYSROOT/aarch64-linux-android/libc++_shared.so" \
    android/app/src/main/jniLibs/arm64-v8a/
 
-cp "$NDK_SYSROOT/arm-linux-androideabi/libc++_shared.so" \
-   android/app/src/main/jniLibs/armeabi-v7a/
+if [ "$DEV_MODE" = false ]; then
+    cp "$NDK_SYSROOT/arm-linux-androideabi/libc++_shared.so" \
+       android/app/src/main/jniLibs/armeabi-v7a/
 
-cp "$NDK_SYSROOT/x86_64-linux-android/libc++_shared.so" \
-   android/app/src/main/jniLibs/x86_64/
+    cp "$NDK_SYSROOT/x86_64-linux-android/libc++_shared.so" \
+       android/app/src/main/jniLibs/x86_64/
+fi
 
 # Verify 16KB page size alignment
 echo -e "${YELLOW}Verifying 16KB page size alignment...${NC}"
@@ -132,36 +161,55 @@ for so in android/app/src/main/jniLibs/*/libwhirled_peas.so; do
     fi
 done
 
-# Build APK and AAB with Gradle
-echo -e "${YELLOW}Building APK and AAB with Gradle...${NC}"
+# Build APK (and AAB for release)
 cd android
 
-if [ -f "./gradlew" ]; then
-    ./gradlew assembleRelease bundleRelease
+if [ "$DEV_MODE" = true ]; then
+    echo -e "${YELLOW}Building debug APK with Gradle...${NC}"
+    if [ -f "./gradlew" ]; then
+        ./gradlew assembleDebug
+    else
+        echo -e "${YELLOW}Gradle wrapper not found, creating...${NC}"
+        gradle wrapper
+        ./gradlew assembleDebug
+    fi
 else
-    echo -e "${YELLOW}Gradle wrapper not found, creating...${NC}"
-    gradle wrapper
-    ./gradlew assembleRelease bundleRelease
+    echo -e "${YELLOW}Building APK and AAB with Gradle...${NC}"
+    if [ -f "./gradlew" ]; then
+        ./gradlew assembleRelease bundleRelease
+    else
+        echo -e "${YELLOW}Gradle wrapper not found, creating...${NC}"
+        gradle wrapper
+        ./gradlew assembleRelease bundleRelease
+    fi
 fi
 
 cd ..
 
 # Report success
-APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
-AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
-
 echo -e "${GREEN}=== Build Successful! ===${NC}"
 
-if [ -f "$APK_PATH" ]; then
-    echo -e "APK location: ${YELLOW}$APK_PATH${NC}"
-    echo "  (For testing: adb install $APK_PATH)"
-fi
+if [ "$DEV_MODE" = true ]; then
+    APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+    if [ -f "$APK_PATH" ]; then
+        echo -e "Debug APK: ${YELLOW}$APK_PATH${NC}"
+        echo "  (For testing: adb install $APK_PATH)"
+    fi
+else
+    APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+    AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
 
-if [ -f "$AAB_PATH" ]; then
-    echo -e "AAB location: ${YELLOW}$AAB_PATH${NC}"
-    echo "  (For Google Play Store upload)"
-fi
+    if [ -f "$APK_PATH" ]; then
+        echo -e "APK location: ${YELLOW}$APK_PATH${NC}"
+        echo "  (For testing: adb install $APK_PATH)"
+    fi
 
-echo ""
-echo "To sign for Play Store, run:"
-echo "  ./sign-apk.sh"
+    if [ -f "$AAB_PATH" ]; then
+        echo -e "AAB location: ${YELLOW}$AAB_PATH${NC}"
+        echo "  (For Google Play Store upload)"
+    fi
+
+    echo ""
+    echo "To sign for Play Store, run:"
+    echo "  ./sign-apk.sh"
+fi

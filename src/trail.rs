@@ -5,6 +5,7 @@
 use bevy::prelude::*;
 
 use crate::components::{Particle, ParticleState, ParticleVisual, Trail, TrailRenderer, TrailSegment};
+use crate::intro::AppState;
 use crate::resources::MotionTiming;
 
 // =============================================================================
@@ -341,9 +342,13 @@ impl Plugin for TrailPlugin {
                 .chain()
                 // These systems should run after particle motion is integrated
                 // The particle module's integrate_particle_motion runs in Update
-                .after(crate::particle::integrate_particle_motion),
+                .after(crate::particle::integrate_particle_motion)
+                .run_if(in_state(AppState::Fidget)),
         )
-        .add_systems(PostUpdate, render_trails);
+        .add_systems(
+            PostUpdate,
+            render_trails.run_if(in_state(AppState::Fidget)),
+        );
     }
 }
 

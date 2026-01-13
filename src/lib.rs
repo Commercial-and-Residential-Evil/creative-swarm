@@ -84,6 +84,9 @@ pub mod visual;
 /// Post-processing effects: bloom, chromatic aberration, vignette, film grain.
 pub mod post_process;
 
+/// Intro sequence with Bauhaus-styled splash screens.
+pub mod intro;
+
 // =============================================================================
 // RE-EXPORTS
 // =============================================================================
@@ -113,6 +116,7 @@ pub use components::{
 pub use act_management::ActManagementPlugin;
 pub use audio_reactive::AudioReactivePlugin;
 pub use interaction::InteractionPlugin;
+pub use intro::{AppState, IntroPlugin};
 pub use particle::ParticlePlugin;
 pub use post_process::PostProcessPlugin;
 pub use trail::TrailPlugin;
@@ -160,6 +164,7 @@ impl Plugin for WhirledPeasPlugin {
         app.add_plugins((
             ResourcesPlugin,
             ComponentsPlugin,
+            IntroPlugin,      // Intro first - manages AppState
             VisualPlugin,
             ActManagementPlugin,
             ParticlePlugin,

@@ -13,7 +13,6 @@ cd "$SCRIPT_DIR"
 
 PACKAGE="commercial_and_residential_evil.whirled_peas"
 ACTIVITY="commercial_and_residential_evil.whirled_peas.MainActivity"
-APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
 DEBUG_KEYSTORE="$HOME/.android/debug.keystore"
 
 # Colors
@@ -26,6 +25,7 @@ NC='\033[0m'
 # Parse arguments
 BUILD=false
 LOGS_ONLY=false
+DEV_MODE=false
 for arg in "$@"; do
     case $arg in
         --build|-b)
@@ -34,17 +34,28 @@ for arg in "$@"; do
         --logs|-l)
             LOGS_ONLY=true
             ;;
+        --dev|-d)
+            DEV_MODE=true
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --build, -b    Build the APK before installing"
+            echo "  --dev, -d      Use debug APK (faster builds, ARM64 only)"
             echo "  --logs, -l     Just show logs (don't install/launch)"
             echo "  --help, -h     Show this help"
             exit 0
             ;;
     esac
 done
+
+# Set APK path based on mode
+if [ "$DEV_MODE" = true ]; then
+    APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+else
+    APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+fi
 
 # Check for adb
 if ! command -v adb &> /dev/null; then
@@ -82,7 +93,11 @@ fi
 # Build if requested
 if [ "$BUILD" = true ]; then
     echo -e "${YELLOW}Building APK...${NC}"
-    ./build-android.sh
+    if [ "$DEV_MODE" = true ]; then
+        ./build-android.sh --dev
+    else
+        ./build-android.sh
+    fi
 fi
 
 # Check APK exists
@@ -92,34 +107,40 @@ if [ ! -f "$APK_PATH" ]; then
     exit 1
 fi
 
-# Sign APK with debug key if not already signed
-SIGNED_APK="${APK_PATH%.apk}-debug-signed.apk"
-if [ ! -f "$DEBUG_KEYSTORE" ]; then
-    echo -e "${YELLOW}Creating debug keystore...${NC}"
-    mkdir -p "$(dirname "$DEBUG_KEYSTORE")"
-    keytool -genkey -v -keystore "$DEBUG_KEYSTORE" \
-        -storepass android -alias androiddebugkey -keypass android \
-        -keyalg RSA -keysize 2048 -validity 10000 \
-        -dname "CN=Android Debug,O=Android,C=US"
-fi
-
-# Copy and sign
-echo -e "${YELLOW}Signing APK with debug key...${NC}"
-cp "$APK_PATH" "$SIGNED_APK"
-
-# Use apksigner if available, otherwise jarsigner
-if command -v apksigner &> /dev/null; then
-    apksigner sign --ks "$DEBUG_KEYSTORE" --ks-pass pass:android "$SIGNED_APK"
-elif command -v jarsigner &> /dev/null; then
-    jarsigner -keystore "$DEBUG_KEYSTORE" -storepass android "$SIGNED_APK" androiddebugkey
-    # Zipalign if available
-    if command -v zipalign &> /dev/null; then
-        zipalign -f 4 "$SIGNED_APK" "${SIGNED_APK%.apk}-aligned.apk"
-        mv "${SIGNED_APK%.apk}-aligned.apk" "$SIGNED_APK"
-    fi
+# Debug APKs from Gradle are already signed, release APKs need signing
+if [ "$DEV_MODE" = true ]; then
+    # Debug APK is already signed by Gradle
+    SIGNED_APK="$APK_PATH"
 else
-    echo -e "${RED}Error: Neither apksigner nor jarsigner found.${NC}"
-    exit 1
+    # Sign release APK with debug key
+    SIGNED_APK="${APK_PATH%.apk}-debug-signed.apk"
+    if [ ! -f "$DEBUG_KEYSTORE" ]; then
+        echo -e "${YELLOW}Creating debug keystore...${NC}"
+        mkdir -p "$(dirname "$DEBUG_KEYSTORE")"
+        keytool -genkey -v -keystore "$DEBUG_KEYSTORE" \
+            -storepass android -alias androiddebugkey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+    fi
+
+    # Copy and sign
+    echo -e "${YELLOW}Signing APK with debug key...${NC}"
+    cp "$APK_PATH" "$SIGNED_APK"
+
+    # Use apksigner if available, otherwise jarsigner
+    if command -v apksigner &> /dev/null; then
+        apksigner sign --ks "$DEBUG_KEYSTORE" --ks-pass pass:android "$SIGNED_APK"
+    elif command -v jarsigner &> /dev/null; then
+        jarsigner -keystore "$DEBUG_KEYSTORE" -storepass android "$SIGNED_APK" androiddebugkey
+        # Zipalign if available
+        if command -v zipalign &> /dev/null; then
+            zipalign -f 4 "$SIGNED_APK" "${SIGNED_APK%.apk}-aligned.apk"
+            mv "${SIGNED_APK%.apk}-aligned.apk" "$SIGNED_APK"
+        fi
+    else
+        echo -e "${RED}Error: Neither apksigner nor jarsigner found.${NC}"
+        exit 1
+    fi
 fi
 
 # Uninstall old version (ignore errors)

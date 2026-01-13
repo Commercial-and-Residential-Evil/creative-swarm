@@ -602,8 +602,18 @@ pub struct PeaTexture {
 }
 
 // =============================================================================
-// PLUGIN
+// FONT RESOURCES
 // =============================================================================
+
+/// Holds the handle to the UI font used for all text rendering.
+///
+/// On Android, we must explicitly load a font as the default embedded
+/// font may not render correctly.
+#[derive(Resource, Debug, Clone)]
+pub struct UiFont {
+    /// Handle to the loaded font
+    pub handle: Handle<Font>,
+}
 
 /// Plugin that registers all resources for Chromatic Elegy.
 ///
@@ -613,6 +623,20 @@ pub struct ResourcesPlugin;
 
 impl Plugin for ResourcesPlugin {
     fn build(&self, app: &mut App) {
+        info!(">>> ResourcesPlugin::build() STARTING <<<");
+
+        // Load font directly using world access
+        {
+            let world = app.world_mut();
+            info!(">>> Got world_mut <<<");
+            let asset_server = world.resource::<AssetServer>();
+            info!(">>> Got AssetServer <<<");
+            let handle = asset_server.load("fonts/FiraSans-Bold.ttf");
+            info!(">>> Loaded font handle <<<");
+            world.insert_resource(UiFont { handle });
+            info!(">>> UiFont resource inserted <<<");
+        }
+
         app
             // Application state
             .init_resource::<ActState>()

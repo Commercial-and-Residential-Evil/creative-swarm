@@ -7,6 +7,7 @@ use bevy::input::touch::Touches;
 use bevy::window::PrimaryWindow;
 
 use crate::components::{MouseInfluence, Particle, ParticleMotion, ParticleState, ParticleVisual};
+use crate::intro::AppState;
 use crate::resources::{CurrentInteractionMode, InteractionConfig, MouseState};
 use crate::types::InteractionMode;
 
@@ -1109,14 +1110,14 @@ impl Plugin for InteractionPlugin {
             .init_resource::<GentleFadeState>()
             .init_resource::<HyperspaceState>()
             .init_resource::<TouchState>()
-            // Configure system sets
+            // Configure system sets (only in Fidget state)
             .configure_sets(
                 PreUpdate,
-                InteractionInputSet,
+                InteractionInputSet.run_if(in_state(AppState::Fidget)),
             )
             .configure_sets(
                 Update,
-                InteractionInfluenceSet,
+                InteractionInfluenceSet.run_if(in_state(AppState::Fidget)),
             )
             // Add PreUpdate systems
             .add_systems(

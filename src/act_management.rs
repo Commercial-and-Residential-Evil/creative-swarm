@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 
+use crate::intro::AppState;
 use crate::resources::{
     ActState, ActTimings, BackgroundGradients, CurrentBackground,
     CurrentInteractionMode, InterpolatedActValues, PostProcessSettings,
@@ -402,7 +403,7 @@ impl Plugin for ActManagementPlugin {
         app.add_event::<ActTransitionStarted>()
             .add_event::<ActTransitionCompleted>();
 
-        // Configure system sets
+        // Configure system sets (only run in Fidget state)
         app.configure_sets(
             Update,
             (
@@ -410,7 +411,8 @@ impl Plugin for ActManagementPlugin {
                 ActManagementSet::InterpolateValues,
                 ActManagementSet::UpdatePostProcess,
             )
-                .chain(),
+                .chain()
+                .run_if(in_state(AppState::Fidget)),
         );
 
         // Add systems with ordering

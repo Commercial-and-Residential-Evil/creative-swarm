@@ -8,6 +8,7 @@ use bevy::color::Hsla;
 use crate::components::{
     AudioReactive, Particle, ParticleState, ParticleVisual, PulseResponder,
 };
+use crate::intro::AppState;
 use crate::resources::{
     ActState, AmbientAudioState, AudioAnalysis, AudioVisualMapping, CurrentBackground,
     ParticlePool, ParticleSpawnQueue,
@@ -579,7 +580,7 @@ impl Plugin for AudioReactivePlugin {
             .add_event::<BeatDetected>()
             // Startup: pre-load ambient audio (doesn't start playback)
             .add_systems(Startup, preload_ambient_audio)
-            // Add systems with proper ordering
+            // Add systems with proper ordering (only in Fidget state)
             .add_systems(
                 Update,
                 (
@@ -594,7 +595,8 @@ impl Plugin for AudioReactivePlugin {
                     apply_background_pulse.after(detect_beats),
                     // Ambient audio management (starts/stops based on particles)
                     update_ambient_audio,
-                ),
+                )
+                    .run_if(in_state(AppState::Fidget)),
             );
     }
 }

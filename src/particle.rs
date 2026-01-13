@@ -8,6 +8,7 @@ use crate::components::{
     Particle, ParticleBehavior, ParticleBundle, ParticleMotion, ParticleState, ParticleVisual,
     PulseResponder, Spawnable,
 };
+use crate::intro::AppState;
 use crate::resources::{
     ActState, ColorPalette, CurrentInteractionMode, InterpolatedActValues,
     MouseState, ParticlePool, ParticleSpawnQueue, ParticleSpawnRequest, PeaTexture,
@@ -767,7 +768,7 @@ impl Plugin for ParticlePlugin {
         app.add_event::<BeatDetected>()
             // Startup systems: load texture first, then setup pool
             .add_systems(Startup, (load_pea_texture, setup_particle_pool).chain())
-            // Update systems with proper ordering
+            // Update systems with proper ordering (only in Fidget state)
             .add_systems(
                 Update,
                 (
@@ -776,7 +777,8 @@ impl Plugin for ParticlePlugin {
                     spawn_particles_from_beat,
                     spawn_particles_from_queue,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(in_state(AppState::Fidget)),
             )
             .add_systems(
                 Update,
@@ -786,7 +788,8 @@ impl Plugin for ParticlePlugin {
                     despawn_expired_particles,
                 )
                     .chain()
-                    .after(spawn_particles_from_queue),
+                    .after(spawn_particles_from_queue)
+                    .run_if(in_state(AppState::Fidget)),
             )
             .add_systems(
                 Update,
@@ -798,9 +801,13 @@ impl Plugin for ParticlePlugin {
                     apply_velocity_changes,
                 )
                     .chain()
-                    .after(spawn_particles_from_queue),
+                    .after(spawn_particles_from_queue)
+                    .run_if(in_state(AppState::Fidget)),
             )
-            .add_systems(PostUpdate, sync_sprite_visuals);
+            .add_systems(
+                PostUpdate,
+                sync_sprite_visuals.run_if(in_state(AppState::Fidget)),
+            );
     }
 }
 

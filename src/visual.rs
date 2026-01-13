@@ -9,7 +9,6 @@ use crate::components::{BackgroundMarker, Particle, ParticleVisual};
 use crate::resources::{
     ActState, BackgroundGradients, CurrentBackground, InterpolatedActValues,
 };
-use crate::types::Act;
 
 // =============================================================================
 // CONSTANTS
@@ -26,17 +25,6 @@ pub const INITIAL_CLEAR_COLOR: Color = Color::srgb(0.051, 0.051, 0.090);
 
 /// Background entity z-depth (far behind particles).
 const BACKGROUND_Z_DEPTH: f32 = -100.0;
-
-/// Font size for the act title text.
-const ACT_TITLE_FONT_SIZE: f32 = 48.0;
-
-// =============================================================================
-// MARKER COMPONENTS
-// =============================================================================
-
-/// Marker component for the act title UI text.
-#[derive(Component)]
-pub struct ActTitleText;
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -197,6 +185,8 @@ pub fn color_to_hex(color: Color) -> String {
 /// Configures the camera for:
 /// - 1920x1080 viewport with fixed vertical scaling
 /// - Initial clear color matching Act I background
+/// Sets up the main 2D camera with orthographic projection.
+///
 /// - Bloom settings for ethereal glow effects
 ///
 /// # Stage
@@ -415,85 +405,6 @@ pub fn sync_camera_clear_color(
     camera.clear_color = ClearColorConfig::Custom(current_background.gradient_start);
 }
 
-/// Sets up the act title UI text at the top of the screen.
-///
-/// Creates a text entity displaying the current act name, positioned
-/// at the top center of the screen with semi-transparent styling and
-/// a subtle text shadow for visibility against any background.
-pub fn setup_act_title(mut commands: Commands) {
-    info!("Setting up act title UI");
-
-    // Create UI root node with high z-index to ensure visibility
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Auto,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                padding: UiRect::all(Val::Px(20.0)),
-                position_type: PositionType::Absolute,
-                top: Val::Px(20.0),
-                left: Val::Px(0.0),
-                right: Val::Px(0.0),
-                ..default()
-            },
-            GlobalZIndex(100), // Ensure UI renders on top
-            Name::new("ActTitleContainer"),
-        ))
-        .with_children(|parent| {
-            // Shadow/outline text for visibility on any background
-            parent.spawn((
-                Text::new(Act::Emergence.display_name()),
-                TextFont {
-                    font_size: ACT_TITLE_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(Color::srgba(0.0, 0.0, 0.0, 0.5)),
-                TextLayout::new_with_justify(JustifyText::Center),
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(2.0),
-                    top: Val::Px(2.0),
-                    ..default()
-                },
-                Name::new("ActTitleShadow"),
-            ));
-            // Main title text
-            parent.spawn((
-                Text::new(Act::Emergence.display_name()),
-                TextFont {
-                    font_size: ACT_TITLE_FONT_SIZE,
-                    ..default()
-                },
-                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)),
-                TextLayout::new_with_justify(JustifyText::Center),
-                ActTitleText,
-                Name::new("ActTitle"),
-            ));
-        });
-}
-
-/// Updates the act title text when the act changes.
-///
-/// Monitors the ActState resource and updates the title text
-/// to reflect the current act name.
-pub fn update_act_title(
-    act_state: Res<ActState>,
-    mut title_query: Query<&mut Text, With<ActTitleText>>,
-) {
-    if !act_state.is_changed() {
-        return;
-    }
-
-    let Ok(mut text) = title_query.get_single_mut() else {
-        return;
-    };
-
-    // Update the text content
-    **text = act_state.current_act.display_name().to_string();
-}
-
 // =============================================================================
 // SYSTEM SETS
 // =============================================================================
@@ -528,6 +439,7 @@ pub struct VisualPlugin;
 
 impl Plugin for VisualPlugin {
     fn build(&self, app: &mut App) {
+        // Note: UiFont is loaded by ResourcesPlugin's load_ui_font system
         app
             // Configure startup systems with ordering
             .add_systems(
@@ -535,7 +447,6 @@ impl Plugin for VisualPlugin {
                 (
                     setup_camera,
                     setup_background.after(setup_camera),
-                    setup_act_title.after(setup_camera),
                 ),
             )
             // Configure update systems with ordering
@@ -545,7 +456,6 @@ impl Plugin for VisualPlugin {
                     apply_act_colors,
                     update_background_gradient,
                     sync_camera_clear_color.after(update_background_gradient),
-                    update_act_title,
                 ),
             );
 
