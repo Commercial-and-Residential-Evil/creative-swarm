@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 
 use crate::components::{BackgroundMarker, Particle, ParticleVisual};
+use crate::intro::AppState;
 use crate::resources::{
     ActState, BackgroundGradients, CurrentBackground, InterpolatedActValues,
 };
@@ -442,21 +443,18 @@ impl Plugin for VisualPlugin {
         // Note: UiFont is loaded by ResourcesPlugin's load_ui_font system
         app
             // Configure startup systems with ordering
-            .add_systems(
-                Startup,
-                (
-                    setup_camera,
-                    setup_background.after(setup_camera),
-                ),
-            )
-            // Configure update systems with ordering
+            .add_systems(Startup, setup_camera)
+            // Setup background when entering Fidget state (not during intro)
+            .add_systems(OnEnter(AppState::Fidget), setup_background)
+            // Configure update systems - only run during Fidget state
             .add_systems(
                 Update,
                 (
                     apply_act_colors,
                     update_background_gradient,
                     sync_camera_clear_color.after(update_background_gradient),
-                ),
+                )
+                    .run_if(in_state(AppState::Fidget)),
             );
 
         info!("VisualPlugin initialized");

@@ -31,14 +31,6 @@ pub enum AppState {
 pub enum IntroStep {
     /// App title
     Title,
-    /// Tagline
-    Tagline,
-    /// Touch instruction
-    TouchInstruction,
-    /// Tap instruction
-    TapInstruction,
-    /// Two-finger instruction
-    TwoFingerInstruction,
     /// Ready prompt
     Ready,
 }
@@ -47,11 +39,7 @@ impl IntroStep {
     /// Returns the display duration for this step in seconds.
     pub fn duration_secs(&self) -> f32 {
         match self {
-            IntroStep::Title => 2.5,
-            IntroStep::Tagline => 2.0,
-            IntroStep::TouchInstruction => 2.5,
-            IntroStep::TapInstruction => 2.0,
-            IntroStep::TwoFingerInstruction => 2.5,
+            IntroStep::Title => 3.0,
             IntroStep::Ready => 3.0,
         }
     }
@@ -59,11 +47,7 @@ impl IntroStep {
     /// Returns the next step, or None if this is the final step.
     pub fn next(&self) -> Option<IntroStep> {
         match self {
-            IntroStep::Title => Some(IntroStep::Tagline),
-            IntroStep::Tagline => Some(IntroStep::TouchInstruction),
-            IntroStep::TouchInstruction => Some(IntroStep::TapInstruction),
-            IntroStep::TapInstruction => Some(IntroStep::TwoFingerInstruction),
-            IntroStep::TwoFingerInstruction => Some(IntroStep::Ready),
+            IntroStep::Title => Some(IntroStep::Ready),
             IntroStep::Ready => None,
         }
     }
@@ -71,11 +55,7 @@ impl IntroStep {
     /// Returns the primary text for this step.
     pub fn primary_text(&self) -> &'static str {
         match self {
-            IntroStep::Title => "WHIRLED PEAS",
-            IntroStep::Tagline => "A Visual Fidget Experience",
-            IntroStep::TouchInstruction => "Touch & drag to paint",
-            IntroStep::TapInstruction => "Tap for explosions",
-            IntroStep::TwoFingerInstruction => "Two-finger tap for hyperspace",
+            IntroStep::Title => "Whirled Peas Visualiser",
             IntroStep::Ready => "Touch to begin",
         }
     }
@@ -83,9 +63,8 @@ impl IntroStep {
     /// Returns the font size for primary text.
     pub fn primary_font_size(&self) -> f32 {
         match self {
-            IntroStep::Title => 96.0,
-            IntroStep::Tagline => 36.0,
-            _ => 48.0,
+            IntroStep::Title => 64.0,
+            IntroStep::Ready => 48.0,
         }
     }
 }
@@ -179,7 +158,6 @@ pub struct IntroDecor;
 /// Sets up the intro UI with Bauhaus styling.
 /// Runs at Startup to ensure intro is visible before any interaction.
 pub fn setup_intro_ui(mut commands: Commands, ui_font: Res<UiFont>) {
-    info!(">>> INTRO: Setting up Bauhaus-styled intro UI <<<");
 
     let font = ui_font.handle.clone();
 
@@ -258,16 +236,11 @@ pub fn setup_intro_ui(mut commands: Commands, ui_font: Res<UiFont>) {
             ));
         });
 
-    info!(">>> INTRO: UI setup complete - spawned background, bars, and text <<<");
 }
 
 /// Returns the base color for a given intro step.
-fn step_color(step: IntroStep) -> Color {
-    match step {
-        IntroStep::Title | IntroStep::Ready => ACCENT_PRIMARY,
-        IntroStep::Tagline => ACCENT_SECONDARY,
-        _ => ACCENT_PRIMARY,
-    }
+fn step_color(_step: IntroStep) -> Color {
+    ACCENT_PRIMARY
 }
 
 /// Updates the intro sequence with fade transitions.
@@ -329,10 +302,8 @@ pub fn update_intro_sequence(
                         *color = TextColor(Color::srgba(base.red, base.green, base.blue, 0.0));
                     }
 
-                    info!("Intro step: {:?}", next_step);
                 } else {
                     // Intro complete - transition to fidget mode
-                    info!("Intro complete - transitioning to Fidget mode");
                     next_state.set(AppState::Fidget);
                 }
             }
@@ -359,7 +330,6 @@ pub fn handle_intro_skip(
         };
 
         if should_proceed {
-            info!("Intro skipped by user touch");
             next_state.set(AppState::Fidget);
         }
     }
@@ -370,7 +340,6 @@ pub fn cleanup_intro_ui(
     mut commands: Commands,
     intro_query: Query<Entity, With<IntroUI>>,
 ) {
-    info!("Cleaning up intro UI");
     for entity in intro_query.iter() {
         commands.entity(entity).despawn_recursive();
     }
@@ -388,8 +357,6 @@ pub struct IntroPlugin;
 
 impl Plugin for IntroPlugin {
     fn build(&self, app: &mut App) {
-        info!(">>> INTRO PLUGIN: build() starting <<<");
-
         app
             // Register app state
             .init_state::<AppState>()
@@ -405,7 +372,5 @@ impl Plugin for IntroPlugin {
             )
             // Cleanup when leaving intro state
             .add_systems(OnExit(AppState::Intro), cleanup_intro_ui);
-
-        info!(">>> INTRO PLUGIN: build() complete <<<");
     }
 }

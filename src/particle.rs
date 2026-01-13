@@ -707,7 +707,7 @@ pub fn apply_velocity_changes(
 ///
 /// Copies ParticleVisual properties (color, opacity, scale) to the Sprite
 /// component so the rendering system displays the correct appearance.
-/// Applies pulse scale modifier through custom_size to avoid blurry transform scaling.
+/// Applies pulse opacity modifier for breathing effect without blurry scaling.
 pub fn sync_sprite_visuals(
     mut query: Query<
         (&ParticleVisual, &ParticleState, &PulseResponder, &mut Sprite, &mut Transform),
@@ -733,15 +733,15 @@ pub fn sync_sprite_visuals(
             1.0
         };
 
-        let final_opacity = visual.opacity * fade_factor;
+        // Apply pulse opacity modifier for breathing effect
+        let final_opacity = visual.opacity * fade_factor * pulse_responder.current_opacity_modifier;
 
         // Apply color with opacity
         let color = visual.current_color.to_srgba();
         sprite.color = Color::srgba(color.red, color.green, color.blue, final_opacity);
 
-        // Apply scale to the pea sprite via custom_size (including pulse modifier)
-        // All scaling through custom_size keeps rendering crisp (no transform.scale blurring)
-        let scaled_size = PEA_BASE_SIZE * visual.scale * pulse_responder.current_scale_modifier;
+        // Apply scale to the pea sprite via custom_size (no pulse scaling to avoid blur)
+        let scaled_size = PEA_BASE_SIZE * visual.scale;
         sprite.custom_size = Some(Vec2::splat(scaled_size));
 
         // Keep transform scale at 1.0 to avoid blurry texture filtering

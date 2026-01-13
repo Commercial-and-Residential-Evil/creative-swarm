@@ -350,12 +350,13 @@ pub fn apply_pulse_effect(
 ) {
     // Pulse frequency - how many cycles per second
     const PULSE_FREQUENCY: f32 = 1.5;
-    // Maximum scale variation (0.15 = up to 15% size change)
-    const PULSE_AMPLITUDE: f32 = 0.15;
+    // Opacity variation range (0.25 = oscillates between 0.75 and 1.0)
+    const PULSE_OPACITY_RANGE: f32 = 0.25;
 
     for (state, mut visual, mut pulse_responder) in query.iter_mut() {
         if !state.active || state.lifetime_total_ms <= 0.0 {
             pulse_responder.current_scale_modifier = 1.0;
+            pulse_responder.current_opacity_modifier = 1.0;
             continue;
         }
 
@@ -373,12 +374,14 @@ pub fn apply_pulse_effect(
         let phase = age_seconds * PULSE_FREQUENCY * std::f32::consts::TAU;
         let pulse_value = (phase.sin() * 0.5 + 0.5) * intensity; // 0.0 to intensity
 
-        // Apply pulse as scale modifier
-        pulse_responder.current_scale_modifier = 1.0 + pulse_value * PULSE_AMPLITUDE;
+        // Apply pulse as opacity modifier (no scale to avoid blurriness)
+        // Opacity oscillates from (1.0 - range) to 1.0 based on pulse
+        pulse_responder.current_scale_modifier = 1.0; // Keep scale constant
+        pulse_responder.current_opacity_modifier = 1.0 - (1.0 - pulse_value) * PULSE_OPACITY_RANGE * intensity;
 
-        // Subtle bloom contribution when pulsing outward
-        if pulse_value > 0.3 {
-            visual.bloom_contribution = (visual.bloom_contribution + pulse_value * 0.1).min(1.0);
+        // Subtle bloom contribution when pulsing bright
+        if pulse_value > 0.5 {
+            visual.bloom_contribution = (visual.bloom_contribution + pulse_value * 0.15).min(1.0);
         }
     }
 }
@@ -426,31 +429,19 @@ pub struct AudioDisabled;
 ///
 /// If the audio file (assets/audio/loop.wav) doesn't exist, audio is
 /// silently disabled - this allows disabling audio by simply removing the file.
-pub fn preload_ambient_audio(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    // On desktop, check if audio file exists before loading
-    // On Android, assets are embedded - we load and check validity later
-    #[cfg(not(target_os = "android"))]
-    {
-        let audio_path = std::path::Path::new("assets/audio/loop.wav");
-        if audio_path.exists() {
-            info!("Loading ambient audio loop");
-            let audio_handle: Handle<AudioSource> = asset_server.load("audio/loop.wav");
-            commands.insert_resource(AmbientAudioHandle(audio_handle));
-        } else {
-            info!("Audio file not found (assets/audio/loop.wav) - audio feature disabled");
-            commands.insert_resource(AudioDisabled);
-        }
-    }
-
-    // On Android, try to load - Bevy will handle missing assets gracefully
-    #[cfg(target_os = "android")]
-    {
-        info!("Loading ambient audio loop (Android)");
+pub fn preload_ambient_audio(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // Check if audio file exists in assets directory
+    // On Android, bundled assets aren't accessible via filesystem - this check will
+    // return false, effectively disabling audio until a proper audio file is bundled
+    let audio_path = std::path::Path::new("assets/audio/loop.wav");
+    if audio_path.exists() {
+        info!("Loading ambient audio loop");
         let audio_handle: Handle<AudioSource> = asset_server.load("audio/loop.wav");
         commands.insert_resource(AmbientAudioHandle(audio_handle));
+    } else {
+        // Audio file not present - disable audio feature silently
+        let _ = &asset_server; // Suppress unused warning
+        commands.insert_resource(AudioDisabled);
     }
 }
 

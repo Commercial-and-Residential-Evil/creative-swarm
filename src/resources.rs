@@ -623,18 +623,12 @@ pub struct ResourcesPlugin;
 
 impl Plugin for ResourcesPlugin {
     fn build(&self, app: &mut App) {
-        info!(">>> ResourcesPlugin::build() STARTING <<<");
-
         // Load font directly using world access
         {
             let world = app.world_mut();
-            info!(">>> Got world_mut <<<");
             let asset_server = world.resource::<AssetServer>();
-            info!(">>> Got AssetServer <<<");
             let handle = asset_server.load("fonts/FiraSans-Bold.ttf");
-            info!(">>> Loaded font handle <<<");
             world.insert_resource(UiFont { handle });
-            info!(">>> UiFont resource inserted <<<");
         }
 
         app

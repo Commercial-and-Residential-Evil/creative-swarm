@@ -312,6 +312,8 @@ pub struct PulseResponder {
     pub decay_rate: f32,
     /// Current scale modifier from pulse effect (1.0 = no change)
     pub current_scale_modifier: f32,
+    /// Current opacity modifier from pulse effect (1.0 = no change)
+    pub current_opacity_modifier: f32,
 }
 
 impl Default for PulseResponder {
@@ -321,6 +323,7 @@ impl Default for PulseResponder {
             pulse_amplitude: 0.0,
             decay_rate: 3.0,
             current_scale_modifier: 1.0,
+            current_opacity_modifier: 1.0,
         }
     }
 }
